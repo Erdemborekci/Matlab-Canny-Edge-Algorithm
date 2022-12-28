@@ -1,0 +1,146 @@
+clc
+clear all
+close all
+
+%Read Image
+O_img=imread("crataegus_crus-galli.jpg");
+figure(1) 
+imshow(O_img);
+title('Original Image');
+
+%Convert Gray Level And Read Gray Level Image
+Gray_img=rgb2gray(O_img);
+figure(2);
+imshow(Gray_img);
+title('Gray Level Image');
+
+% Size Of Image
+Size_img=size(O_img);
+
+% Gaussian Filtering
+Gaus_img=imgaussfilt(Gray_img,3);
+figure(3);
+imshow(Gaus_img);
+title('Gaussian Filter Output');
+
+%Sobel Mask Generate
+sobel_mask_x = [-1 -2 -1;0 0 0;1 2 1];
+sobel_mask_y = [-1 0 1;-2 0 2;-1 0 1];
+
+% Gradient component in the vertical direction
+Gaus_img=double(Gaus_img);
+Ix= imfilter(Gaus_img,sobel_mask_x,'replicate');
+figure(4); 
+imshow(Ix,[min(Ix(:)) max(Ix(:))]);
+title('Gradient Component In The Vertical');
+
+% Gradient component in the horizontal direction
+Iy= imfilter(Gaus_img,sobel_mask_y,'replicate');
+figure(5); 
+imshow(Iy,[min(Iy(:)) max(Iy(:))]);
+title('Gradient Component In The Horizontal');
+
+%Compute the gradient magnitude image M
+M = sqrt(Ix.^2+Iy.^2);
+figure(6); imshow(M,[0 max(M(:))]);
+title('Gradient Magnitude');
+
+%Compute the gradient angle image T in degrees
+T = atan2(Ix,Iy);
+figure(7); 
+imshow(T,[-pi,pi]);
+title('Gradient Angle');
+
+%Run The Function
+gN = myNonMaximaSuppression(M, T);
+figure(8);
+imshow(gN,[]);
+title('NonMaximaSuppression Image Output');
+
+%Apply Double Thresholding 
+gN_normalized = gN./max(gN(:));
+m = size(gN_normalized,1);
+n = size(gN_normalized,2);
+PercentOfPixelsNotEdges = 0.99;
+T_high=PercentOfPixelsNotEdges;
+T_low=PercentOfPixelsNotEdges/2;
+counts=imhist(gN_normalized, 64);
+highThresh = find(cumsum(counts) > T_high*m*n, 1,'first') / 64;
+lowThresh = find(cumsum(counts) > T_low*m*n, 1,'first') / 64;
+
+
+highThresh=highThresh*255;
+lowThresh=lowThresh*255;
+
+%Compute High Thresh 
+highThresh_img=M > highThresh;
+figure(9);
+subplot(2,1,1);
+imshow(highThresh_img);
+title('HighThresh Image Output');
+
+%Compute Low Thresh 
+lowThresh_img=M > lowThresh;
+subplot(2,1,2);
+imshow(lowThresh_img);
+title('LowThresh Image Output');
+
+%Histogram Of Low And High Thresh  
+figure(10);
+subplot(2,1,1);
+imhist(highThresh_img);
+title('High Thresh Image Histogram');
+subplot(2,1,2);
+imhist(lowThresh_img);
+title('Low Thresh Image Histogram');
+
+%function of Non Maxima Suppression 
+ function gN = myNonMaximaSuppression(M, T)
+ num_rows = size(M,1);
+ num_columns = size(M,2);
+ gN = zeros(num_rows,num_columns);
+ for x = 2:num_rows-1
+    for y = 2:num_columns-1
+ gradient_angle = T(x,y);
+% check whether gradient_angle at (x,y) is in region d1
+        if ((gradient_angle >= -22.5) && (gradient_angle < 22.5)) || ((gradient_angle >= 157.5) && (gradient_angle < -157.5))
+            if M(x,y) >= max(M(x+1,y),M(x-1,y))
+                gN(x,y) = M(x,y);
+            else
+                gN(x,y) = 0;
+            end
+        end
+% check whether gradient_angle at (x,y) is in region d2
+         if((gradient_angle >= 22.5) && (gradient_angle < 67.5)) || ((gradient_angle >= -112.5) && (gradient_angle < -157.5))
+            if M(x,y) >= max(M(x+1,y+1),M(x-1,y-1))
+                gN(x,y) = M(x,y);
+            else
+                gN(x,y) = 0;
+            end
+        end
+% check whether gradient_angle at (x,y) is in region d3
+        if((gradient_angle >= 67.5) && (gradient_angle < 112.5)) || ((gradient_angle >= -67.5) && (gradient_angle < -112.5))
+            if M(x,y) >= max(M(x,y+1),M(x,y-1))
+                gN(x,y) = M(x,y);
+            else
+                gN(x,y) = 0;
+            end
+        end
+% check whether gradient_angle at (x,y) is in region d4
+        if((gradient_angle >= 112.5) && (gradient_angle < 157.5)) || ((gradient_angle >= -22.5) && (gradient_angle < -67.5))
+            if M(x,y) >= max(M(x+1,y-1),M(x-1,y+1))
+                gN(x,y) = M(x,y);
+            else
+                gN(x,y) = 0;
+            end
+        end
+    end
+ end
+ end
+ 
+ 
+
+
+        
+
+ 
